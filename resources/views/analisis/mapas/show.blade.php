@@ -91,142 +91,355 @@
 
     @push('scripts')
         <script>
-            let map, heatmap, coordinates;
+      // Script mejorado para el mapa de calor
+let map, heatmap, coordinates, infoWindow, markers = [], clusterer;
 
-            window.onload = function() {
-                initMap();
-            }
+window.onload = function() {
+    initMap();
+}
 
-            function buscarUbi() {
-                const input = document.getElementById("search-input");
-                searchLocation(input.value);
-            }
+function buscarUbi() {
+    const input = document.getElementById("search-input");
+    searchLocation(input.value);
+}
 
-            function initMap() {
-                var lati = {!! $mapa->latitud !!}
-                var lngi = {!! $mapa->longitud !!}
+function initMap() {
+    var lati = {!! $mapa->latitud !!}
+    var lngi = {!! $mapa->longitud !!}
 
-                coordinates = {!! json_encode($puntos) !!};
-                console.log('PUNTOS');
-                console.log(coordinates);
+    coordinates = {!! json_encode($puntos) !!};
+    console.log('PUNTOS:', coordinates);
 
-                map = new google.maps.Map(document.getElementById("map"), {
-                    zoom: 13,
-                    center: {
-                        lat: lati,
-                        lng: lngi
-                    },
-                    mapTypeId: "satellite",
-                });
+    // Inicializar mapa con controles mejorados
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 13,
+        center: { lat: lati, lng: lngi },
+        mapTypeId: "satellite",
+        gestureHandling: 'cooperative',
+        zoomControl: true,
+        mapTypeControl: true,
+        scaleControl: true,
+        streetViewControl: true,
+        rotateControl: true,
+        fullscreenControl: true
+    });
 
-                heatmap = new google.maps.visualization.HeatmapLayer({
-                    data: getPoints(),
-                    map: map,
-                });
+    // InfoWindow único para reutilizar
+    infoWindow = new google.maps.InfoWindow();
 
-                heatmap.set("radius", heatmap.get("radius") ? null : 20);
-            }
+    // Inicializar heatmap
+    initHeatmap();
+    
+    // Crear marcadores individuales (inicialmente ocultos)
+    createMarkers();
+    
+    // Agregar controles personalizados
+    addCustomControls();
+    
+    // Event listeners
+    addEventListeners();
+}
 
-            function getPoints() {
-                var points = [];
-                for (var i = 0; i < coordinates.length; i++) {
-                    var latLng = new google.maps.LatLng(coordinates[i].latitud, coordinates[i].longitud);
-                    points.push(latLng);
+function initHeatmap() {
+    heatmap = new google.maps.visualization.HeatmapLayer({
+        data: getWeightedPoints(),
+        map: map,
+        radius: 25,
+        maxIntensity: 10,
+        dissipating: true,
+       
+    });
+}
+
+function getWeightedPoints() {
+    var points = [];
+    for (var i = 0; i < coordinates.length; i++) {
+        if (coordinates[i].latitud && coordinates[i].longitud) {
+            // Agregar peso basado en algún criterio (puedes ajustar esto)
+            var weight = coordinates[i].peso || coordinates[i].intensidad || 1;
+            points.push({
+                location: new google.maps.LatLng(coordinates[i].latitud, coordinates[i].longitud),
+                weight: weight
+            });
+        }
+    }
+    return points;
+}
+
+function createMarkers() {
+    // Limpiar marcadores existentes
+    clearMarkers();
+    
+    coordinates.forEach((punto, index) => {
+        if (punto.latitud && punto.longitud) {
+            const marker = new google.maps.Marker({
+                position: { lat: parseFloat(punto.latitud), lng: parseFloat(punto.longitud) },
+                map: null, // Inicialmente ocultos
+                title: punto.enfermedad || `Punto ${index + 1}`,
+                icon: {
+                    url: 'data:image/svg+xml,' + encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FF0000">
+                            <circle cx="12" cy="12" r="8" stroke="#FFFFFF" stroke-width="2"/>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(24, 24)
                 }
-                console.log('PUNTOS DESDE FUNCION');
-                console.log(points);
-                return points;
-            }
+            });
 
-            function searchLocation(location) {
-                if (location.trim() === "") {
-                    return;
-                }
-
-                const geocoder = new google.maps.Geocoder();
-                geocoder.geocode({
-                    address: location
-                }, (results, status) => {
-                    if (status === "OK" && results.length > 0) {
-                        // Limpiar marcadores existentes y dibujos
-                        heatmap.setMap(null);
-                        clearDrawings();
-
-                        // Mostrar el nuevo lugar en el mapa
-                        map.setCenter(results[0].geometry.location);
-                        heatmap = new google.maps.visualization.HeatmapLayer({
-                            data: [results[0].geometry.location],
-                            map: map,
-                        });
-                        heatmap.set("radius", heatmap.get("radius") ? null : 20);
-
-                        // Dibujar el área buscada con líneas segmentadas
-                        const bounds = results[0].geometry.viewport;
-                        const rectangle = new google.maps.Rectangle({
-                            bounds: bounds,
-                            strokeColor: "#000000",
-                            strokeOpacity: 0.8,
-                            strokeWeight: 2,
-                            fillColor: "#000000",
-                            fillOpacity: 0,
-                            map: map,
-                            clickable: false,
-                            strokeDashArray: "10 5" // Líneas segmentadas
-                        });
-                        drawings.push(rectangle);
-
-                        // Cargar los puntos nuevamente
-                        points = getPoints();
-                        heatmap.setData(points);
-
-                    } else {
-                        alert("No se pudo encontrar la ubicación.");
-                    }
-                });
-            }
-
-            function clearDrawings() {
-                for (let i = 0; i < drawings.length; i++) {
-                    drawings[i].setMap(null);
-                }
-                drawings = [];
-            }
-
-            let drawings = [];
-
-
-
-            // // Para abajo es prueba de las mpodificaciones
-            // var map = new google.maps.Map(document.getElementById('map'), {
-            //     zoom: 10,
-            //     center: {
-            //         lat: 37.7749,
-            //         lng: -122.4194
-            //     }, // Centra el mapa en una ubicación específica
-            // });
-
-            // var center = {
-            //     lat: 37.7749,
-            //     lng: -122.4194
-            // }; // Coordenadas del centro del círculo
-            // var radius = 500; // Radio del círculo en metros
-
-            // // Define una serie de colores para el degradado
-
-            // var circle = new google.maps.Circle({
-            //     strokeColor: '#F5DC09', // Color del borde del círculo
-            //     strokeOpacity: 0.8, // Opacidad del borde
-            //     strokeWeight: 6, // Grosor del borde
-            //     fillColor: '#F22209', // Color de relleno del círculo (puede ser cualquier color)
-            //     fillOpacity: 0.56, // Opacidad del relleno
-            //     center: center, // Centro del círculo
-            //     radius: radius, // Radio del círculo en metros
-            // });
-
-            // circle.setMap(map); // Agrega el círculo al mapa
-
-
+            // Crear contenido del InfoWindow
+            const infoContent = createInfoWindowContent(punto, index);
             
+            // Event listener para mostrar InfoWindow
+            marker.addListener('click', () => {
+                infoWindow.setContent(infoContent);
+                infoWindow.open(map, marker);
+                
+                // Opcional: centrar el mapa en el marcador
+                map.panTo(marker.getPosition());
+            });
+
+            markers.push(marker);
+        }
+    });
+}
+
+function createInfoWindowContent(punto, index) {
+    return `
+        <div style="max-width: 300px; font-family: Arial, sans-serif;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; margin: -8px -8px 12px -8px; border-radius: 4px 4px 0 0;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: bold;">
+                    📍 ${punto.enfermedad || `Punto ${index + 1}`}
+                </h3>
+            </div>
+            
+            <div style="padding: 0 4px;">
+                <div style="margin-bottom: 8px;">
+                    <strong>🧑 Persona:</strong> ${punto.name || punto.usuario || 'No especificado'}
+                </div>
+                
+                <div style="margin-bottom: 8px;">
+                    <strong>📊 Datos:</strong>
+                    <ul style="margin: 4px 0; padding-left: 20px;">
+                        ${punto.peso ? `<li>Peso: ${punto.peso}</li>` : ''}
+                        ${punto.edad ? `<li><strong>Edad:</strong> ${punto.edad}</li>` : ''}
+                        ${punto.ubicacion ? `<li>Ubicación: ${punto.ubicacion}</li>` : ''}
+                        <li>Lat: ${parseFloat(punto.latitud).toFixed(6)}°</li>
+                        <li>Lng: ${parseFloat(punto.longitud).toFixed(6)}°</li>
+                    </ul>
+                </div>
+                
+                ${punto.descripcion ? `
+                    <div style="margin-bottom: 8px;">
+                        <strong>📝 Descripción:</strong><br>
+                        <span style="color: #666;">${punto.descripcion}</span>
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee;">
+                    <button onclick="verDetalles(${index})" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 8px;">
+                        Ver Detalles
+                    </button>
+                    <button onclick="centrarEnPunto(${punto.latitud}, ${punto.longitud})" style="background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                        Centrar Aquí
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addCustomControls() {
+    // Control para alternar entre heatmap y marcadores
+    const toggleControl = document.createElement('div');
+    toggleControl.className = 'custom-map-control-button';
+    toggleControl.innerHTML = `
+        <button id="toggle-view" onclick="toggleView()" style="
+            background: white; 
+            border: 2px solid #fff; 
+            border-radius: 3px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,.3); 
+            cursor: pointer; 
+            margin: 8px; 
+            padding: 8px 16px; 
+            font-size: 14px;
+            font-weight: 500;
+        ">
+            🔥 Mostrar Marcadores
+        </button>
+    `;
+    
+    // Control para ajustar intensidad
+    const intensityControl = document.createElement('div');
+    intensityControl.className = 'custom-map-control-button';
+    intensityControl.innerHTML = `
+        <div style="background: white; border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,.3); margin: 8px; padding: 8px;">
+            <label style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: block;">Intensidad:</label>
+            <input type="range" id="intensity-slider" min="1" max="50" value="25" onchange="changeIntensity(this.value)" style="width: 100px;">
+            <span id="intensity-value" style="font-size: 11px; margin-left: 8px;">25</span>
+        </div>
+    `;
+    
+    // Control para radio del heatmap
+    const radiusControl = document.createElement('div');
+    radiusControl.className = 'custom-map-control-button';
+    radiusControl.innerHTML = `
+        <div style="background: white; border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,.3); margin: 8px; padding: 8px;">
+            <label style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: block;">Radio:</label>
+            <input type="range" id="radius-slider" min="10" max="100" value="25" onchange="changeRadius(this.value)" style="width: 100px;">
+            <span id="radius-value" style="font-size: 11px; margin-left: 8px;">25</span>
+        </div>
+    `;
+
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(toggleControl);
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(intensityControl);
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControl);
+}
+
+let showingMarkers = false;
+
+function toggleView() {
+    const button = document.getElementById('toggle-view');
+    
+    if (!showingMarkers) {
+        // Mostrar marcadores, ocultar heatmap
+        heatmap.setMap(null);
+        markers.forEach(marker => marker.setMap(map));
+        button.innerHTML = '🗺️ Mostrar Heatmap';
+        showingMarkers = true;
+    } else {
+        // Mostrar heatmap, ocultar marcadores
+        markers.forEach(marker => marker.setMap(null));
+        heatmap.setMap(map);
+        button.innerHTML = '🔥 Mostrar Marcadores';
+        showingMarkers = false;
+    }
+}
+
+function changeIntensity(value) {
+    heatmap.set('maxIntensity', parseInt(value));
+    document.getElementById('intensity-value').textContent = value;
+}
+
+function changeRadius(value) {
+    heatmap.set('radius', parseInt(value));
+    document.getElementById('radius-value').textContent = value;
+}
+
+function addEventListeners() {
+ 
+    // Listener para cambios de zoom
+    map.addListener('zoom_changed', () => {
+        const zoom = map.getZoom();
+        // Ajustar radio del heatmap basado en zoom
+        const adaptiveRadius = Math.max(10, Math.min(50, 60 - zoom * 3));
+        heatmap.set('radius', adaptiveRadius);
+    });
+}
+
+
+function clearMarkers() {
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+}
+
+function centrarEnPunto(lat, lng) {
+    map.setCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
+    map.setZoom(16);
+    infoWindow.close();
+}
+
+function verDetalles(index) {
+    const punto = coordinates[index];
+    // Aquí puedes agregar lógica para mostrar más detalles
+    // Por ejemplo, abrir un modal o redirigir a otra página
+    alert(`Detalles completos del punto:\n\nPersona: ${punto.name || 'No especificado'}\nCoordenadas: ${punto.latitud}, ${punto.longitud}\nEdad: ${punto.edad || 'No especificado'}`);
+}
+
+function searchLocation(location) {
+    if (location.trim() === "") {
+        return;
+    }
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: location }, (results, status) => {
+        if (status === "OK" && results.length > 0) {
+            // Limpiar marcadores temporales
+            clearDrawings();
+
+            // Centrar en la ubicación encontrada
+            map.setCenter(results[0].geometry.location);
+            map.setZoom(15);
+
+            // Crear marcador de búsqueda
+            const searchMarker = new google.maps.Marker({
+                position: results[0].geometry.location,
+                map: map,
+                title: 'Ubicación buscada: ' + location,
+                icon: {
+                    url: 'data:image/svg+xml,' + encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#FFD700">
+                            <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" stroke="#FF6600" stroke-width="1"/>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(32, 32)
+                },
+                animation: google.maps.Animation.BOUNCE
+            });
+
+            // InfoWindow para la búsqueda
+            const searchInfo = `
+                <div style="font-family: Arial, sans-serif;">
+                    <h4>🔍 Ubicación Encontrada</h4>
+                    <p><strong>${results[0].formatted_address}</strong></p>
+                    <p>Lat: ${results[0].geometry.location.lat().toFixed(6)}°<br>
+                    Lng: ${results[0].geometry.location.lng().toFixed(6)}°</p>
+                </div>
+            `;
+
+            searchMarker.addListener('click', () => {
+                infoWindow.setContent(searchInfo);
+                infoWindow.open(map, searchMarker);
+            });
+
+            drawings.push(searchMarker);
+
+            // Detener la animación después de 3 segundos
+            setTimeout(() => {
+                searchMarker.setAnimation(null);
+            }, 3000);
+
+        } else {
+            alert("No se pudo encontrar la ubicación: " + location);
+        }
+    });
+}
+
+function clearDrawings() {
+    drawings.forEach(drawing => drawing.setMap(null));
+    drawings = [];
+}
+
+// Función para exportar datos del mapa
+function exportMapData() {
+    const mapData = {
+        center: map.getCenter().toJSON(),
+        zoom: map.getZoom(),
+        points: coordinates,
+        timestamp: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(mapData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mapa_calor_datos.json';
+    link.click();
+}
+
+// Variables globales para dibujos
+let drawings = [];
         </script>
     @endpush
 </x-app-layout>

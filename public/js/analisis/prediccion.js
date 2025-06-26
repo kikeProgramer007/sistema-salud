@@ -18,26 +18,32 @@ function initOperands() {
     }
 }
 
+// function predict(x) {
+//     return tf.tidy(() => {
+//         const xs = tf.tensor1d(x);
+//         let ys = tf.zerosLike(xs);
+//         for (let i = 0; i <= degree; i++) {
+//             const coef = operands[i];
+//             ys = ys.add(coef.mul(xs.pow(tf.scalar(i))));
+//         }
+//         return ys;
+//     });
+// }
+
 function predict(x) {
     const xs = tf.tensor1d(x);
     let ys = tf.variable(tf.zerosLike(xs));
+    // console.log(`xs: ${xs} - ys: ${ys} - degree: ${degree}`);
     for (let i = 0; i <= degree; i++) {
         const coef = operands[i];
         const pow_ts = tf.fill(xs.shape, i);
         const sum = tf.add(ys, operands[i].mul(xs.pow(pow_ts)));
-<<<<<<< HEAD
-        console.log('coef predict ', operands[i].dataSync()[0].toFixed(2));
-=======
-        // console.log('coef predict ', operands[i].dataSync()[0].toFixed(2));
->>>>>>> 0b5367c8e138a400ba923f94248ce47b416e25fb
+        // console.log("coef predict ", operands[i].dataSync()[0].toFixed(2));
         ys.dispose();
         ys = sum.clone();
     }
+    // console.log(`Finalizo bucle`);
     return ys;
-}
-
-function loss(pred, labels) {
-    return pred.sub(labels).square().mean();
 }
 
 function train() {
@@ -54,9 +60,29 @@ function train() {
             // console.log('coef pos 4b ', operands[0].dataSync()[0].toFixed(2));
             return loss(pred, ys);
         });
-        
     }
 }
+
+function loss(pred, labels) {
+    return pred.sub(labels).square().mean();
+}
+
+// function train() {
+//     const xs = tf.tensor1d(x_vals);
+//     const ys = tf.tensor1d(y_vals);
+
+//     for (let i = 0; i < 1500; i++) {
+//         optimizer.minimize(() => {
+//             const pred = predict(x_vals);
+//             const l = loss(pred, ys);
+//             pred.dispose();
+//             return l;
+//         }, false);
+//     }
+
+//     xs.dispose();
+//     ys.dispose();
+// }
 
 var ctx = document.getElementById("myChart").getContext("2d");
 const polynomialLabel = `Polinomio (Grado ${degree})`;
@@ -111,17 +137,15 @@ var chart = new Chart(ctx, {
 });
 
 function initGraph() {
-<<<<<<< HEAD
-    console.log('coef A ', operands[0].dataSync()[0].toFixed(2));
-=======
->>>>>>> 0b5367c8e138a400ba923f94248ce47b416e25fb
+    // console.log("coef A ", operands[0].dataSync()[0].toFixed(2));
     train();
-    console.log('coef D ', operands[0].dataSync()[0].toFixed(2));
+    // console.log("coef D ", operands[0].dataSync()[0].toFixed(2));
     // Configuración del gráfico
     chart.data.datasets[0] = {
         type: "scatter",
         label: "Puntos",
         data: y_vals,
+        // data: x_vals.map((x, i) => ({ x, y: y_vals[i] })),
         borderColor: "rgb(31, 180, 228)",
         backgroundColor: "rgb(95, 212, 249)",
         fill: false,
@@ -139,7 +163,7 @@ function initGraph() {
     let output = [];
     for (let i = 0; i <= degree; i++) {
         const coef = operands[i].dataSync()[0].toFixed(2);
-        console.log('coef ', coef);
+        // console.log("coef ", coef);
         // when power of x is one or zero show sont show powers
         if (i === 1) {
             output.push(`${coef}x`);
@@ -148,7 +172,7 @@ function initGraph() {
         } else {
             output.push(`${coef}x<sup>${i}</sup>`);
         }
-        console.log('output ', output);
+        console.log("output ", output);
     }
 
     operandsTextHolder.innerHTML =
@@ -158,13 +182,14 @@ function initGraph() {
         type: "line",
         label: polynomialLabel,
         data: curveY,
+        // data: curveX.map((x, i) => ({ x, y: curveY[i] })),
         borderColor: "green",
         backgroundColor: "rgb(27, 254, 116)",
         fill: false,
         tension: 0.3,
     };
     chart.data.labels = curveX;
-    console.log(curveY);
+    // console.log(curveY);
     // Renderizar el gráfico
     chart.update();
 }
@@ -183,21 +208,23 @@ async function getData() {
     let fecha_fin = document.getElementById("endDate").value;
     let url = "";
     var res = null;
+
     await axios
         .get(
             `/datosPrediccion/${id}/${fecha_ini}/${fecha_fin}`
             // `http://127.0.0.1:3000/api/v1/shoppings/2023-01-02/2023-12-20/4157094700968`
         )
         .then((response) => {
-            console.log(response.data.data);
+            // console.log(response.data.data);
             res = response.data.data;
-            // x.forEach(element => {
-            //     console.log(element);
-            // });
+            res.forEach((element) => {
+                console.log(element);
+            });
         })
         .catch((error) => {
             console.log(error);
         });
+
     if (res != null) {
         x_vals = [];
         y_vals = [];
@@ -210,11 +237,41 @@ async function getData() {
             labels_date.push(date_ini.toDateString());
             date_ini.setDate(date_ini.getDate() + 1);
             x_vals.push(++x);
-            y_vals.push(element.ncontagios);
+            y_vals.push(element.nContagios);
         });
         labels_date.push(date_ini.toDateString());
         console.log(labels_date);
+
+        console.log(`x-vals ${JSON.stringify(x_vals)}`);
+        console.log(`y-vals ${JSON.stringify(y_vals)}`);
+
         initVariables();
         initGraph();
     }
 }
+
+// window.addEventListener("DOMContentLoaded", () => {
+//     // Datos fijos de prueba
+//     x_vals = [-2, -1, 0, 1, 2];
+//     y_vals = [-2, 1, 0, 1, 4];
+
+//     degree = 2;
+//     learningRate = 0.1;
+
+//     // Asegurarse de que haya suficientes datos
+//     if (x_vals.length < degree + 1) {
+//         alert(
+//             `Se requieren al menos ${
+//                 degree + 1
+//             } puntos para entrenar un polinomio de grado ${degree}`
+//         );
+//         return;
+//     }
+
+//     initVariables();
+//     initGraph();
+// });
+
+/*
+
+*/

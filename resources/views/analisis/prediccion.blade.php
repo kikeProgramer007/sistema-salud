@@ -150,7 +150,7 @@
             </script>
             <!-- Tensorflow.js -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.8.0/chart.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.11.1"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.16.0/dist/tf.min.js"></script>
             <!-- p5.js -->
             {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/p5.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6.0/addons/p5.dom.js"></script> --}}

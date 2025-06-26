@@ -55,48 +55,34 @@ class MapaController extends Controller
      */
     public function show(Mapa $mapa)
     {
-        $enfermedadesIds = $mapa->enfermedad_virals->pluck('id')->toArray();
-       
-        $userIds = DB::table('estadia_enfermedads')
-            ->join('estados', 'estadia_enfermedads.estado_id', '=', 'estados.id')
-            ->select('estadia_enfermedads.user_id')
-            ->where('estados.estado', 'Confirmado')
-            ->whereIn('enfermedad_id', $enfermedadesIds)
-            ->get();
+   
+    // 1. Obtener IDs de enfermedades asociadas al mapa
+    $enfermedadesIds = $mapa->enfermedad_virals->pluck('id')->toArray();
 
-        $userIdsArray = collect($userIds)->pluck('user_id')->toArray();
-        //dd($enfermedadesIds, $userIds, $userIdsArray);
-        if (!empty($userIdsArray)) {
-            $puntos = User::whereIn('id', $userIdsArray)->select('latitud','longitud')->get();
-        } else {
-            $puntos = collect(); // colección vacía sin error
-        }
-     
-        $puntos2 = [];
-        
-        // Verificamos que al menos haya un punto
-        if (isset($puntos[0])) {
-            for ($i = 1; $i <= 70; $i++) {
-                $puntos2[$i] = $puntos[0];
-            }
-        }
-    
-        // Verificamos que exista el índice 15
-        if (isset($puntos[15])) {
-            for ($i = 1; $i <= 1; $i++) {
-                $puntos2[$i] = $puntos[15];
-            }
-        }
-    
-      
-        // $puntos2[] = $puntos[0];
-        // $puntos2[] = $puntos[15];
-        // return [$puntos2[0], $puntos[15]];
-        $puntos = $puntos2;
-        // return $puntos;
-        // En Revision
-
-        return view('analisis.mapas.show',compact('mapa','puntos'));
+    // 2. Obtener las coordenadas de los usuarios confirmados
+    $puntos = DB::table('estadia_enfermedads')
+        ->join('estados', 'estadia_enfermedads.estado_id', '=', 'estados.id')
+        ->leftJoin('enfermedad_virals', 'estadia_enfermedads.enfermedad_id', '=', 'enfermedad_virals.id')
+        ->join('users', 'estadia_enfermedads.user_id', '=', 'users.id')
+        ->select(
+            'users.id',
+            'users.name',
+            'users.latitud',
+            'users.longitud',
+            'users.ubicacion',
+            'users.fecha_nac',
+            DB::raw('TIMESTAMPDIFF(YEAR, users.fecha_nac, CURDATE()) AS edad'), // Calcula la edad
+            'enfermedad_virals.nombre as enfermedad',
+            'enfermedad_virals.descripcion',
+           
+        )
+        ->where('estados.estado', 'Confirmado')
+        ->whereIn('enfermedad_virals.id', $enfermedadesIds)
+        ->groupBy('users.id', 'users.name', 'users.latitud', 'users.longitud', 'users.ubicacion', 'users.fecha_nac',  'enfermedad_virals.nombre', 'enfermedad_virals.descripcion')
+        ->get();
+        // ->toSql();
+     // dd($enfermedadesIds,$puntos);
+    return view('analisis.mapas.show', compact('mapa', 'puntos'));
     }
 
     /**

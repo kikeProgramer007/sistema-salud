@@ -106,4 +106,11 @@ CAMBIOS EN LA POLÍTICA DE PRIVACIDAD:
 5.2 Te recomendamos que revises periódicamente esta Política de Privacidad para estar al tanto de cualquier cambio.
 Si tienes alguna pregunta o inquietud sobre nuestra Política de Privacidad, por favor contáctanos. Tu privacidad es importante para nosotros y nos comprometemos a proteger tu información personal de acuerdo con esta Política de Privacidad y las leyes aplicables.
 Última actualización: [Fecha de la última actualización de la Política de Privacidad]
+
 # Proyecto_Salud
+
+```bash
+npm i
+npm run watch
+php artisan serve
+```
